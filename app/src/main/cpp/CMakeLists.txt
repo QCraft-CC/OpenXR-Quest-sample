@@ -13,6 +13,8 @@ get_filename_component(app_root ${CMAKE_SOURCE_DIR}/../../../.. ABSOLUTE)
 set(xr_sdk ${app_root}/libs-3rdparty/openxr-sdk)
 #add_subdirectory(${xr_sdk} openxr)
 
+add_subdirectory(${app_root}/OpenComposite OpenComposite)
+
 file(GLOB XR_SOURCE "hello_xr/*.cpp")
 
 # Creates and names a library, sets it as either STATIC
@@ -29,8 +31,19 @@ add_library( # Sets the name of the library.
         # Provides a relative path to your source file(s).
         native-lib.cpp
 
-        ${XR_SOURCE}
+        #${XR_SOURCE}
+
+        hello_openvr_vulkan/xrandroid.cpp
+        hello_openvr_vulkan/hellovr_opengl_main.cpp
+        # hello_openvr_vulkan/hellovr_vulkan_main.cpp
+        hello_openvr_vulkan/shared/lodepng.cpp
+        hello_openvr_vulkan/shared/Matrices.cpp
+        hello_openvr_vulkan/shared/pathtools.cpp
+        hello_openvr_vulkan/shared/strtools.cpp
         )
+
+# Used by the OpenVR samples
+target_compile_options(native-lib PRIVATE -DLINUX -DPOSIX)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -101,3 +114,7 @@ target_link_libraries(oculus_loader INTERFACE ${app_root}/libs-3rdparty/OculusOp
 target_include_directories(oculus_loader INTERFACE ${xr_sdk}/include)
 
 target_link_libraries(native-lib oculus_loader)
+
+# Link to OpenComposite
+# Note we need Vulkan for the early pre-game-submits-frame state
+target_link_libraries(native-lib OCOVR vulkan)
