@@ -5,7 +5,6 @@
     <mapping directory="$PROJECT_DIR$/OpenComposite" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/OpenComposite/libs/glm" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/OpenComposite/libs/openxr-sdk" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/OpenOVR" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/libs-3rdparty/openxr-sdk" vcs="Git" />
   </component>
 </project>

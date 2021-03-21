@@ -22,6 +22,8 @@ public:
     virtual bool HandleInput() = 0;
 
     virtual void RenderFrame() = 0;
+
+    virtual bool SleepPoll() = 0;
 };
 
 IMainApplication *CreateApplication();

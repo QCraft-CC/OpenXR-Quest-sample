@@ -43,6 +43,8 @@
 #include "shared/compat.h"
 #include "xrandroid.h"
 
+#include <Misc/android_api.h>
+
 extern "C" {
 XrGraphicsBindingOpenGLESAndroidKHR *OpenComposite_Android_GLES_Binding_Info = nullptr;
 }
@@ -145,6 +147,8 @@ public:
     bool CreateAllShaders();
 
     CGLRenderModel *FindOrLoadRenderModel(const char *pchRenderModelName);
+
+    bool SleepPoll() override;
 
 private:
     bool m_bDebugOpenGL;
@@ -512,12 +516,14 @@ bool CMainApplication::BInit() {
         logf(ANDROID_LOG_ERROR, "eglGetConfigAttrib() returned error %d", eglGetError());
         return false;
     }
-    // TODO do we need this?
-    ANativeWindow_setBuffersGeometry(current_app->window, 0, 0, format);
 
-    EGLSurface surface;
-    if (!(surface = eglCreateWindowSurface(display, config, current_app->window, 0))) {
-        logf(ANDROID_LOG_ERROR, "eglCreateWindowSurface() returned error %d", eglGetError());
+    // Copying the hellovr example, make a pbuffer surface - we don't plan to render
+    // onto it so the resolution doesn't matter, but it means android can destroy and
+    // recreate the surface all it wants without disturbing us.
+    const EGLint surfaceAttribs[] = {EGL_WIDTH, 16, EGL_HEIGHT, 16, EGL_NONE};
+    EGLSurface surface = eglCreatePbufferSurface(display, config, surfaceAttribs);
+    if (surface == EGL_NO_SURFACE) {
+        logf(ANDROID_LOG_ERROR, "eglCreatePbufferSurface() failed: %d", eglGetError());
         return false;
     }
     EGLint attrs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
@@ -614,12 +620,12 @@ bool CMainApplication::BInit() {
     vr::VRInput()->GetActionSetHandle("/actions/demo", &m_actionsetDemo);
 
     vr::VRInput()->GetActionHandle("/actions/demo/out/Haptic_Left", &m_rHand[Left].m_actionHaptic);
-    vr::VRInput()->GetInputSourceHandle("/user/hand/left", &m_rHand[Left].m_source);
+    //vr::VRInput()->GetInputSourceHandle("/user/hand/left", &m_rHand[Left].m_source);
     vr::VRInput()->GetActionHandle("/actions/demo/in/Hand_Left", &m_rHand[Left].m_actionPose);
 
     vr::VRInput()->GetActionHandle("/actions/demo/out/Haptic_Right",
                                    &m_rHand[Right].m_actionHaptic);
-    vr::VRInput()->GetInputSourceHandle("/user/hand/right", &m_rHand[Right].m_source);
+    //vr::VRInput()->GetInputSourceHandle("/user/hand/right", &m_rHand[Right].m_source);
     vr::VRInput()->GetActionHandle("/actions/demo/in/Hand_Right", &m_rHand[Right].m_actionPose);
 
     return true;
@@ -2002,4 +2008,9 @@ int main(int argc, char *argv[]) {
 
 IMainApplication *CreateApplication() {
     return new CMainApplication(0, nullptr);
+}
+
+bool CMainApplication::SleepPoll() {
+    OpenComposite_Android_EventPoll();
+    return false;
 }

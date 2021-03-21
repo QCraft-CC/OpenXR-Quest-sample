@@ -1,5 +1,8 @@
 #include "xrandroid.h"
 
+// Access stuff from OpenComposite
+#include "Misc/android_api.h"
+
 #include <unistd.h>
 
 /// ANDROIDY STUFF
@@ -41,13 +44,6 @@ static void app_handle_cmd(struct android_app *app, int32_t cmd) {
             log(ANDROID_LOG_INFO, "onStop()");
             log(ANDROID_LOG_INFO, "    APP_CMD_STOP");
 
-            if (appState->app) {
-                log(ANDROID_LOG_INFO, "Destroying app");
-                appState->app->Shutdown();
-                delete appState->app;
-                appState->app = nullptr;
-            }
-
             break;
         }
         case APP_CMD_DESTROY: {
@@ -60,25 +56,6 @@ static void app_handle_cmd(struct android_app *app, int32_t cmd) {
             log(ANDROID_LOG_INFO, "surfaceCreated()");
             log(ANDROID_LOG_INFO, "    APP_CMD_INIT_WINDOW");
             appState->NativeWindow = app->window;
-
-            if (appState->app) {
-                appState->app->Shutdown();
-                delete appState->app;
-                appState->app = nullptr;
-                log(ANDROID_LOG_WARN, "Shutting down previous app");
-            }
-
-            // Start the app
-            appState->app = CreateApplication();
-
-            if (!appState->app->BInit()) {
-                log(ANDROID_LOG_ERROR, "Failed to BInit app");
-                appState->app->Shutdown();
-                delete appState->app;
-                appState->app = nullptr;
-                return;
-            }
-
             break;
         }
         case APP_CMD_TERM_WINDOW: {
@@ -95,9 +72,7 @@ static void app_handle_cmd(struct android_app *app, int32_t cmd) {
 }
 
 // Our little hack to pass setup data to OC
-extern "C" {
-extern XrInstanceCreateInfoAndroidKHR *OpenComposite_Android_Create_Info;
-}
+XrInstanceCreateInfoAndroidKHR *OpenComposite_Android_Create_Info = nullptr;
 
 /**
  * This is the main entry point of a native application that is using
@@ -141,6 +116,14 @@ void android_main(struct android_app *app) {
             initializeLoader((const XrLoaderInitInfoBaseHeaderKHR *) &loaderInitInfoAndroid);
         }
 
+        // Start the app
+        userData.app = CreateApplication();
+        if (!userData.app->BInit()) {
+            log(ANDROID_LOG_ERROR, "Failed to BInit app");
+            // Leaks resources, but who cares at this point
+            return;
+        }
+
         while (app->destroyRequested == 0) {
             // Read all pending events.
             for (;;) {
@@ -163,8 +146,10 @@ void android_main(struct android_app *app) {
             }
 
             // Throttle while not displaying anything
-            if (!userData.app) {
+            if (!userData.Resumed) {
                 usleep(100 * 1000);
+                bool shouldExit = userData.app->SleepPoll();
+                if (shouldExit) break;
                 continue;
             }
 
@@ -174,6 +159,11 @@ void android_main(struct android_app *app) {
 
             userData.app->RenderFrame();
         }
+
+        log(ANDROID_LOG_INFO, "Destroying app");
+        userData.app->Shutdown();
+        delete userData.app;
+        userData.app = nullptr;
 
         app->activity->vm->DetachCurrentThread();
     } catch (const std::exception &ex) {
